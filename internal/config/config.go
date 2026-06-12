@@ -36,6 +36,9 @@ type Config struct {
 	// when the request does not specify one.
 	DefaultCallerID string
 
+	// APIToken guards the /api/* admin endpoints (bearer token / X-Api-Key).
+	APIToken string
+
 	// Cloudflare R2 (S3-compatible) recording archive.
 	R2Endpoint        string // full endpoint; overrides R2AccountID if set
 	R2AccountID       string // used to derive endpoint when R2Endpoint is empty
@@ -85,6 +88,7 @@ func Load() *Config {
 		SyncLookback:          time.Duration(getint("SYNC_LOOKBACK_MIN", 90)) * time.Minute,
 		SyncSecret:            os.Getenv("SYNC_SECRET"),
 		DefaultCallerID:       os.Getenv("DEFAULT_CALLER_ID"),
+		APIToken:              os.Getenv("API_TOKEN"),
 
 		R2Endpoint:         os.Getenv("R2_ENDPOINT"),
 		R2AccountID:        os.Getenv("R2_ACCOUNT_ID"),

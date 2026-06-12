@@ -20,12 +20,15 @@ import (
 
 func init() { gin.SetMode(gin.TestMode) }
 
+const testAPIToken = "test-token"
+
 func testCfg() *config.Config {
 	return &config.Config{
 		RouterDBTimeout: 2 * time.Second,
 		SyncLookback:    time.Hour,
 		ExotelSubdomain: "api.exotel.com",
 		ExotelSID:       "acct1",
+		APIToken:        testAPIToken,
 	}
 }
 
@@ -65,6 +68,8 @@ func (hn *harness) req(method, path, body string, headers map[string]string) *ht
 	} else {
 		r = httptest.NewRequest(method, path, nil)
 	}
+	// /api/* is token-guarded; default to a valid token (harmless on other routes).
+	r.Header.Set("Authorization", "Bearer "+testAPIToken)
 	for k, v := range headers {
 		r.Header.Set(k, v)
 	}
