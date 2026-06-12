@@ -146,7 +146,10 @@ func (c *Client) ListCallsPage(ctx context.Context, from, to time.Time, nextURI 
 		endpoint = c.baseURL + nextURI
 	} else {
 		q := url.Values{}
-		q.Set("DateCreated", fmt.Sprintf("gte:%s;lte:%s", from.Format(dateFmt), to.Format(dateFmt)))
+		// Exotel interprets DateCreated in the account timezone (IST). Callers
+		// may pass UTC times (e.g. a UTC container clock), so convert the window
+		// to IST wall-clock — otherwise it's shifted 5.5h and misses recent calls.
+		q.Set("DateCreated", fmt.Sprintf("gte:%s;lte:%s", from.In(istLoc).Format(dateFmt), to.In(istLoc).Format(dateFmt)))
 		q.Set("PageSize", "100")
 		q.Set("SortBy", "DateCreated:asc")
 		q.Set("RecordingUrlValidity", "60")

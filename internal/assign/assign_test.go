@@ -19,7 +19,7 @@ func TestCaptureOutboundCreatesAssignment(t *testing.T) {
 		FromNumber: "+919812345678", // POC
 		ToNumber:   "08318825478",   // client
 	}
-	changed, err := assign.CaptureOutbound(gdb, call)
+	changed, err := assign.FromCall(gdb, call)
 	if err != nil || !changed {
 		t.Fatalf("expected assignment created, changed=%v err=%v", changed, err)
 	}
@@ -34,15 +34,31 @@ func TestCaptureOutboundCreatesAssignment(t *testing.T) {
 	}
 }
 
-func TestCaptureOutboundIgnoresInbound(t *testing.T) {
+// Inbound: POC = To (the answered agent), client = From.
+func TestFromCallInboundCapturesPOC(t *testing.T) {
 	gdb := testutil.NewDB(t)
-	gdb.Create(&models.Contact{Name: "POC", Phone: "09812345678", Active: true})
-	call := &models.Call{ExotelSID: "c1", Direction: "inbound", FromNumber: "09812345678", ToNumber: "08318825478"}
-	changed, _ := assign.CaptureOutbound(gdb, call)
-	var n int64
-	gdb.Model(&models.Assignment{}).Count(&n)
-	if changed || n != 0 {
-		t.Errorf("inbound should be ignored; changed=%v count=%d", changed, n)
+	gdb.Create(&models.Contact{Name: "POC", Phone: "07400184225", Active: true})
+	call := &models.Call{
+		ExotelSID: "in1", Direction: "inbound",
+		FromNumber: "08076708542", // client (caller)
+		ToNumber:   "07400184225", // POC (answered agent)
+	}
+	changed, err := assign.FromCall(gdb, call)
+	if err != nil || !changed {
+		t.Fatalf("expected inbound assignment, changed=%v err=%v", changed, err)
+	}
+	if err := gdb.First(&models.Assignment{}, "customer_phone = ?", "8076708542").Error; err != nil {
+		t.Fatalf("inbound assignment not created: %v", err)
+	}
+}
+
+// Directions we don't understand are ignored.
+func TestFromCallIgnoresUnknownDirection(t *testing.T) {
+	gdb := testutil.NewDB(t)
+	gdb.Create(&models.Contact{Name: "POC", Phone: "07400184225", Active: true})
+	call := &models.Call{ExotelSID: "x", Direction: "", FromNumber: "08076708542", ToNumber: "07400184225"}
+	if changed, _ := assign.FromCall(gdb, call); changed {
+		t.Error("unknown direction should be ignored")
 	}
 }
 
@@ -50,7 +66,7 @@ func TestCaptureOutboundIgnoresUnknownPOC(t *testing.T) {
 	gdb := testutil.NewDB(t)
 	// no contacts at all
 	call := &models.Call{ExotelSID: "c1", Direction: "outbound-dial", FromNumber: "09812345678", ToNumber: "08318825478"}
-	changed, _ := assign.CaptureOutbound(gdb, call)
+	changed, _ := assign.FromCall(gdb, call)
 	if changed {
 		t.Error("From is not a known POC; should be ignored")
 	}
@@ -65,13 +81,13 @@ func TestCaptureOutboundKeepsLatest(t *testing.T) {
 	newer := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 
 	// newer call first -> binds to "New"
-	if _, err := assign.CaptureOutbound(gdb, &models.Call{
+	if _, err := assign.FromCall(gdb, &models.Call{
 		ExotelSID: "n", Direction: "outbound-dial", FromNumber: "09800000002", ToNumber: "08318825478", StartTime: &newer,
 	}); err != nil {
 		t.Fatal(err)
 	}
 	// older call must NOT override the newer assignment
-	if _, err := assign.CaptureOutbound(gdb, &models.Call{
+	if _, err := assign.FromCall(gdb, &models.Call{
 		ExotelSID: "o", Direction: "outbound-dial", FromNumber: "09800000001", ToNumber: "08318825478", StartTime: &older,
 	}); err != nil {
 		t.Fatal(err)
@@ -87,7 +103,8 @@ func TestCaptureOutboundKeepsLatest(t *testing.T) {
 func TestBackfill(t *testing.T) {
 	gdb := testutil.NewDB(t)
 	gdb.Create(&models.Contact{Name: "POC", Phone: "09812345678", Active: true})
-	// two outbound calls to two clients + one inbound (ignored) + one outbound from a non-POC (ignored)
+	// 2 outbound (POC=From) + 1 inbound (POC=To) all map to the POC; 1 outbound
+	// from a non-POC is ignored. -> 3 distinct clients assigned.
 	t1 := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
 	gdb.Create(&models.Call{ExotelSID: "a", Direction: "outbound-dial", FromNumber: "09812345678", ToNumber: "08300000001", StartTime: &t1})
 	gdb.Create(&models.Call{ExotelSID: "b", Direction: "outbound-api", FromNumber: "09812345678", ToNumber: "08300000002", StartTime: &t1})
@@ -98,12 +115,12 @@ func TestBackfill(t *testing.T) {
 	if err != nil {
 		t.Fatalf("backfill: %v", err)
 	}
-	if written != 2 {
-		t.Errorf("expected 2 assignments written, got %d", written)
+	if written != 3 {
+		t.Errorf("expected 3 assignments written, got %d", written)
 	}
 	var n int64
 	gdb.Model(&models.Assignment{}).Count(&n)
-	if n != 2 {
-		t.Errorf("expected 2 assignments in db, got %d", n)
+	if n != 3 {
+		t.Errorf("expected 3 assignments in db, got %d", n)
 	}
 }

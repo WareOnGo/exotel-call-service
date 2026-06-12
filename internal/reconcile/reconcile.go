@@ -74,8 +74,8 @@ func Sync(ctx context.Context, db *gorm.DB, client *exotel.Client, lookback time
 			}
 			sum.Upserted++
 
-			// Outbound POC→client calls seed sticky routing too.
-			if _, err := assign.CaptureOutbound(db, call); err != nil {
+			// Inbound + outbound calls both seed sticky routing.
+			if _, err := assign.FromCall(db, call); err != nil {
 				log.Printf("reconcile: capture assignment %s: %v", r.Sid, err)
 			}
 		}

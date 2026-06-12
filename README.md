@@ -43,7 +43,7 @@ incoming call ──▶│ ExoPhone flow ▶ Connect applet (dynamic URL) ──
 | POST | `/webhooks/call-status` | StatusCallback ingestion (idempotent) |
 | POST | `/sync` | manual reconcile (guard: `X-Sync-Secret`) |
 | POST | `/archive-recordings` | copy un-archived recordings to R2 (guard: `X-Sync-Secret`) |
-| POST | `/backfill-assignments` | seed sticky assignments from existing outbound POC→client calls (guard: `X-Sync-Secret`) |
+| POST | `/backfill-assignments` | seed sticky assignments from existing calls — outbound (POC=From) and inbound (POC=To) (guard: `X-Sync-Secret`) |
 | POST | `/api/calls/connect` | click-to-call: `{from,to,caller_id}` |
 | GET | `/api/calls` | recent calls (`?limit&offset&status&from`) |
 | GET/POST | `/api/contacts` | list / create POCs |

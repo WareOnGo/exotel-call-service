@@ -53,8 +53,8 @@ func (h *Handler) CallStatusWebhook(c *gin.Context) {
 		return
 	}
 
-	// Outbound POC→client calls seed sticky routing.
-	if _, err := assign.CaptureOutbound(h.DB, call); err != nil {
+	// Inbound + outbound calls both seed sticky routing.
+	if _, err := assign.FromCall(h.DB, call); err != nil {
 		log.Printf("webhook: capture assignment %s: %v", sid, err)
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
