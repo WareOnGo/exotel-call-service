@@ -1,0 +1,6 @@
+.env
+exotel-call-service
+/bin/
+/out/
+*.exe
+coverage.out
