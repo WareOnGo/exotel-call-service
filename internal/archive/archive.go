@@ -42,7 +42,10 @@ func (a *Archiver) Run(ctx context.Context) (Summary, error) {
 	err := a.DB.WithContext(ctx).
 		// GORM stores unset strings as '' (not NULL), so check both.
 		Where("recording_url <> '' AND (recording_r2_key IS NULL OR recording_r2_key = '')").
-		Where("recording_archive_attempts < ?", a.MaxAttempts).
+		// COALESCE: rows that predate the column (added via AutoMigrate) have a
+		// NULL attempts, and `NULL < n` is NULL (not true) — which would silently
+		// exclude them forever. Treat NULL as 0.
+		Where("COALESCE(recording_archive_attempts, 0) < ?", a.MaxAttempts).
 		Order("start_time asc nulls last"). // oldest first — closest to Exotel's ~6mo expiry
 		Limit(a.BatchSize).
 		Find(&calls).Error

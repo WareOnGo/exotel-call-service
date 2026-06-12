@@ -4,3 +4,6 @@ exotel-call-service
 /out/
 *.exe
 coverage.out
+
+# Local-only Claude skill (operator notes), not part of the repo
+.claude/

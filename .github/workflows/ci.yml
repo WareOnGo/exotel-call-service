@@ -46,4 +46,6 @@ jobs:
           go-version: "1.25"
           cache: true
       # Same suite, real engine — catches Postgres-specific SQL the SQLite run can't.
-      - run: go test -count=1 ./...
+      # -p 1: packages share one Postgres and truncate between tests, so they
+      # must run one at a time (no cross-package truncation races).
+      - run: go test -p 1 -count=1 ./...
